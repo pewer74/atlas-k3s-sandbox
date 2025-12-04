@@ -1,18 +1,35 @@
 {
-    "name": "K3s for Atlas K8s",
-    // 使用一個內建 Docker/Kubernetes 工具的基礎映像
-    "image": "mcr.microsoft.com/devcontainers/universal:latest",
+    "name": "Atlas K8s Sandbox (K3s on Codespace)",
+    // 使用 dind 映像，它在 Codespace 中對容器化應用程式 (如 K3s) 更友善
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
     
     "features": {
-        // 確保 Docker CLI 存在，雖然 K3s 不一定需要標準 Docker，但這是良好習慣
+        // 安裝 Docker-in-Docker (dind)
         "ghcr.io/devcontainers/features/docker-in-docker:2": {
             "version": "latest",
             "mobsf": "false" 
+        },
+        // 安裝 K3s/kubectl
+        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+            "version": "latest"
         }
     },
-    
-    // Codespace 啟動後執行的腳本
-    "postCreateCommand": "bash .devcontainer/setup-k3s.sh",
+
+    // *** 最關鍵的自動啟動 K3s 邏輯 ***
+    "postCreateCommand": [
+        "sudo apt-get update && sudo apt-get install -y curl",
+        // 1. 安裝 K3s (不啟用 systemd)
+        "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--disable traefik' sh -s -",
+        
+        // 2. 複製 Kubeconfig 檔案並修正權限
+        "mkdir -p $HOME/.kube",
+        "sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config",
+        "sudo chown $USER:$USER $HOME/.kube/config",
+
+        // 3. 確保 K3s API 伺服器完全啟動並回應 (最長等待 120 秒)
+        "echo '等待 K3s API Server 啟動...'",
+        "kubectl wait --for=condition=Ready node --all --timeout=120s"
+    ],
     
     "customizations": {
         "vscode": {
@@ -23,7 +40,7 @@
         }
     },
     
-    // 設置 Codespace 的規格（如果您有付費方案，可以選擇更高規格）
+    // 設置 Codespace 的規格
     "hostRequirements": {
         "cpus": 4,
         "memory": "8gb",
