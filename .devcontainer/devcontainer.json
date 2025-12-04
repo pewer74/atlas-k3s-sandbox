@@ -13,12 +13,10 @@
     // 啟動後執行的指令：使用 Docker Compose 啟動 Atlas
     "postCreateCommand": [
         "echo '--- Apache Atlas 依賴服務啟動中 (Docker Compose) ---'",
-        // 假設您的 docker-compose.yml 已經準備好，並且包含 Atlas 及所有後端服務
+        "docker compose -f docker-compose.yml pull",
         "docker compose -f docker-compose.yml up -d",
         "echo '等待 Atlas 啟動，這可能需要幾分鐘...'"
     ],
-    
-    // 開放 Apache Atlas 的預設埠口 (21000)
     "forwardPorts": [
         21000
     ],

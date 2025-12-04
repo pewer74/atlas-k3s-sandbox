@@ -1,0 +1,104 @@
+version: '3.7'
+
+services:
+  # --- 1. PostgreSQL (元數據儲存) ---
+  atlas-postgres:
+    image: postgres:14-alpine
+    container_name: atlas-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: atlas_password # 請使用強密碼
+    volumes:
+      - atlas_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- 2. Apache Solr (索引後端) ---
+  atlas-solr:
+    image: solr:8.11.2
+    container_name: atlas-solr
+    restart: always
+    volumes:
+      - atlas_solr_data:/var/solr
+    entrypoint: solr -cloud -z atlas-zookeeper:2181 -h atlas-solr -p 8983
+    depends_on:
+      atlas-zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8983/solr/"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 5
+
+  # --- 3. Apache Zookeeper (協調服務，Kafka/Solr/Atlas 依賴) ---
+  atlas-zookeeper:
+    image: zookeeper:3.8
+    container_name: atlas-zookeeper
+    restart: always
+    ports:
+      - "2181:2181"
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3777
+    healthcheck:
+      test: ["CMD", "bin/zkServer.sh", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- 4. Apache Kafka (消息隊列) ---
+  atlas-kafka:
+    image: bitnami/kafka:3.5
+    container_name: atlas-kafka
+    restart: always
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: atlas-zookeeper:2181
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://atlas-kafka:9092
+      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    depends_on:
+      atlas-zookeeper:
+        condition: service_healthy
+
+  # --- 5. Apache Atlas (核心服務) ---
+  apache-atlas:
+    image: apache/atlas:2.3.0 # 請注意版本，這是撰寫時的穩定版
+    container_name: apache-atlas
+    restart: always
+    # 這是 Codespace 需要開放給外部瀏覽器的埠口
+    ports:
+      - "21000:21000"
+    environment:
+      # 資料庫配置
+      ATLAS_CONFIGURATION_SERVER_DB_TYPE: postgres
+      ATLAS_CONFIGURATION_SERVER_DB_HOSTNAME: atlas-postgres
+      ATLAS_CONFIGURATION_SERVER_DB_PORT: 5432
+      ATLAS_CONFIGURATION_SERVER_DB_ATLAS_DB: atlas
+      ATLAS_CONFIGURATION_SERVER_DB_ATLAS_USER: atlas
+      ATLAS_CONFIGURATION_SERVER_DB_ATLAS_PASSWORD: atlas_password # 與上面 DB 密碼一致
+      
+      # 其他依賴服務
+      ATLAS_CONFIGURATION_ATLAS_KAFKA_ENDPOINT_ZOO_KEEPER_CONNECT: atlas-zookeeper:2181
+      ATLAS_CONFIGURATION_ATLAS_NOTIFICATION_HOOKS_KAFKA_BROKERS: atlas-kafka:9092
+      ATLAS_CONFIGURATION_ATLAS_GRAPH_STORAGE_HOSTNAME: atlas-solr
+      ATLAS_CONFIGURATION_ATLAS_ENABLE_TLS: "false"
+
+    depends_on:
+      atlas-postgres:
+        condition: service_healthy
+      atlas-kafka:
+        condition: service_started
+      atlas-solr:
+        condition: service_started
+
+volumes:
+  atlas_postgres_data:
+  atlas_solr_data:
