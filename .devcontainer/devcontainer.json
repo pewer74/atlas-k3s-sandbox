@@ -1,49 +1,30 @@
 {
-    "name": "Atlas K8s Sandbox (K3d on Codespace)",
-    // 使用一個基礎的 Ubuntu 映像
+    "name": "Apache Atlas Development Environment",
     "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
     
     "features": {
-        // 1. 確保 Docker-in-Docker 存在 (K3d 必須)
+        // 確保 Docker 和 Docker Compose 已經安裝
         "ghcr.io/devcontainers/features/docker-in-docker:2": {
             "version": "latest",
             "mobsf": "false" 
-        },
-        // 2. 安裝 kubectl 和 K3d (使用 feature 安裝通常更穩定)
-        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
-            "version": "latest",
-            "k3d": "latest" 
         }
     },
 
-    // 3. 啟動後執行的指令，設定 K3d 叢集
+    // 啟動後執行的指令：使用 Docker Compose 啟動 Atlas
     "postCreateCommand": [
-        "echo '--- 啟動 K3d 叢集 ---'",
-        // 啟動一個名為 'atlas-k3d' 的 K3d 叢集
-        "k3d cluster create atlas-k3d --api-port 6550 --servers 1",
-
-        // 關鍵步驟：強制 Kubeconfig 輸出並複製到 ~/.kube/config
-        "echo '--- 修正 Kubeconfig ---'",
-        "k3d kubeconfig get atlas-k3d > ~/.kube/config", 
-        
-        // 確保 K8s 叢集完全啟動並回應
-        "echo '等待 K3d 叢集節點 Ready...'",
-        "kubectl wait --for=condition=Ready node --all --timeout=120s"
+        "echo '--- Apache Atlas 依賴服務啟動中 (Docker Compose) ---'",
+        // 假設您的 docker-compose.yml 已經準備好，並且包含 Atlas 及所有後端服務
+        "docker compose -f docker-compose.yml up -d",
+        "echo '等待 Atlas 啟動，這可能需要幾分鐘...'"
     ],
     
+    // 開放 Apache Atlas 的預設埠口 (21000)
+    "forwardPorts": [
+        21000
+    ],
+
     "customizations": {
-        "vscode": {
-            "extensions": [
-                "ms-kubernetes-tools.vscode-kubernetes-tools",
-                "redhat.vscode-yaml"
-            ]
-        }
-    },
-    
-    // 設置 Codespace 的規格（推薦 4 cores / 8GB memory）
-    "hostRequirements": {
-        "cpus": 4,
-        "memory": "8gb",
-        "storage": "32gb"
+        // ... (省略 extensions) ...
     }
+    // ...
 }
