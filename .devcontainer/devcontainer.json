@@ -1,30 +1,32 @@
 {
     "name": "Atlas K8s Sandbox (K3d on Codespace)",
+    // 使用一個基礎的 Ubuntu 映像
     "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
     
     "features": {
-        // 確保 Docker-in-Docker 存在 (K3d 必須)
+        // 1. 確保 Docker-in-Docker 存在 (K3d 必須)
         "ghcr.io/devcontainers/features/docker-in-docker:2": {
             "version": "latest",
             "mobsf": "false" 
         },
-        // 安裝 kubectl 和 K3d
+        // 2. 安裝 kubectl 和 K3d (使用 feature 安裝通常更穩定)
         "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
             "version": "latest",
-            "k3d": "latest" // 指定安裝 K3d
+            "k3d": "latest" 
         }
     },
 
-    // *** K3d 啟動邏輯 (更可靠) ***
+    // 3. 啟動後執行的指令，設定 K3d 叢集
     "postCreateCommand": [
-        "echo '--- 啟動 K3d 叢集 (K3s over Docker) ---'",
-        // 1. 啟動一個名為 'atlas-k3d' 的 K3d 叢集
+        "echo '--- 啟動 K3d 叢集 ---'",
+        // 啟動一個名為 'atlas-k3d' 的 K3d 叢集
         "k3d cluster create atlas-k3d --api-port 6550 --servers 1",
 
-        // 2. 配置 kubectl 使用這個新的叢集
-        // K3d 會自動將 kubeconfig 檔案合併到 ~/.kube/config
+        // 關鍵步驟：強制 Kubeconfig 輸出並複製到 ~/.kube/config
+        "echo '--- 修正 Kubeconfig ---'",
+        "k3d kubeconfig get atlas-k3d > ~/.kube/config", 
         
-        // 3. 確保 K8s 叢集完全啟動並回應
+        // 確保 K8s 叢集完全啟動並回應
         "echo '等待 K3d 叢集節點 Ready...'",
         "kubectl wait --for=condition=Ready node --all --timeout=120s"
     ],
@@ -38,6 +40,7 @@
         }
     },
     
+    // 設置 Codespace 的規格（推薦 4 cores / 8GB memory）
     "hostRequirements": {
         "cpus": 4,
         "memory": "8gb",
