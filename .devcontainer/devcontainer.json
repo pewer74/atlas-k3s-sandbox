@@ -1,0 +1,32 @@
+{
+    "name": "K3s for Atlas K8s",
+    // 使用一個內建 Docker/Kubernetes 工具的基礎映像
+    "image": "mcr.microsoft.com/devcontainers/universal:latest",
+    
+    "features": {
+        // 確保 Docker CLI 存在，雖然 K3s 不一定需要標準 Docker，但這是良好習慣
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "version": "latest",
+            "mobsf": "false" 
+        }
+    },
+    
+    // Codespace 啟動後執行的腳本
+    "postCreateCommand": "bash .devcontainer/setup-k3s.sh",
+    
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-kubernetes-tools.vscode-kubernetes-tools",
+                "redhat.vscode-yaml"
+            ]
+        }
+    },
+    
+    // 設置 Codespace 的規格（如果您有付費方案，可以選擇更高規格）
+    "hostRequirements": {
+        "cpus": 4,
+        "memory": "8gb",
+        "storage": "32gb"
+    }
+}
